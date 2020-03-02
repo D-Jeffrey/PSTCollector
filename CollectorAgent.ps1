@@ -1,4 +1,4 @@
-﻿# This is the PST Collector agent script. It should run as as a startup script, or be run by the CollectorMaster
+# This is the PST Collector agent script. It should run as as a startup script, or be run by the CollectorMaster
 # on each system to scan for PST files.
 # It will scan all provided locations for .PST files.
 #
@@ -87,10 +87,41 @@ function InitializeXML
     return $XML
 }
 
-function RecurseFolder($path)
+function RecurseFolder([string]$path, [string]$mappath)
 {
-
+    
+    
     if ($path -eq "") { return } 
+    $l = $path.length
+    if ($path.length -gt 240) {
+        if ($substUsed) {
+          # we may have a problem and need to reuse Subst .. 
+          # TODO fix this
+          # TeeLog -Message "RecurseFolder: ($path): Need subst .. taking it from $mappath" -Logfile $log 
+          $null = subst $subdrive /d
+          $substUsed = $false
+        }
+        if ($path.StartsWith("\\")) {
+            $mappath = Split-Path $path -parent
+            write-host "MAP $subdrive $mappath"
+            }
+        else { 
+            write-host "Can not shorten $path"
+            return
+            }
+        
+        subst $subdrive $mappath
+        $substUsed = $true
+ 
+        $path = Join-Path $subdrive $(Split-Path -path $path -Leaf)
+        Write-host "
+*RF: $path 
+-was $op
++via $mappath" 
+        }
+        
+      
+
     $files=@()
     $filesTemp=@()
     $err=$null
@@ -100,11 +131,11 @@ function RecurseFolder($path)
         if ($path -eq ${env:ProgramFiles(x86)}) { return }
         if ($path -eq $Env:ProgramFiles) { return }
         if ($path -eq $Env:WinDir) { return }
+        
         #if ($path -eq $Env:ProgramData) { return } #Seems to be questionable if valid PST files would EVER be here
         if ($path.EndsWith("System Volume Information", "CurrentCultureIgnoreCase")) { return }
         if ($path.EndsWith("`$Recycle.bin", "CurrentCultureIgnoreCase")) { return }
     }
-
     $directory = @(get-childitem -LiteralPath $path -Force -ErrorAction SilentlyContinue -ErrorVariable err | Select FullName,Attributes | Where-Object {$_.Attributes -like "*directory*" -and $_.Attributes -notlike "*reparsepoint*"})
     if ($err)
     {
@@ -112,18 +143,25 @@ function RecurseFolder($path)
         return
     }
 
-    foreach ($folder in $directory) { $files+=@(RecurseFolder($folder.FullName)) } #Recursive folder lookup
+    foreach ($folder in $directory) { $files+=@(RecurseFolder($folder.FullName, $mappath)) } #Recursive folder lookup
 
     $filesTemp=@(get-childitem -LiteralPath $path -Filter "*.pst" -Force -ErrorAction SilentlyContinue | Where-Object {$_.Attributes -notlike "*directory*" -and $_.Attributes -notlike "*reparsepoint*"})
     
     Foreach ($file in $filesTemp)
     {
         if (!$File.Fullname) { Continue } #Fixing PS 2.0
+        # TODO need to add subst $mappath
         Teelog -message "File Found: $($file.FullName)" -Logfile $log
     }
     
     $files+=$filesTemp
     $files
+    # if ($substUsed -and ($mappath -eq "")) {
+    #     $substUsed = $false;
+    #     # we don't need the subdrive
+    #     $null = subst $subdrive /d
+    #     }
+
 }
 
 function TeeLog
@@ -299,7 +337,7 @@ function DoFind
                 foreach ($drive in $drives)
                 {
                     Teelog "Scanning Drive: $($Drive.Root)" -Logfile $log
-                    $files+=RecurseFolder($($Drive.Root))
+                    $files+=RecurseFolder($($Drive.Root, ""))
                 }
             }
             catch
@@ -315,7 +353,7 @@ function DoFind
             try
             {
                 if (!(Test-Path $location)) { Throw "Path Not Found" }
-                $files+=RecurseFolder($location)
+                $files+=RecurseFolder($location, "")
             }
             catch
             {
@@ -578,6 +616,17 @@ $configpath = "C:\PSTCollector" #New configpath is forced to C:\PSTCollector to 
 $collectpath = $collectpath.trimend("\")
 $log = $configpath + "\$jobname.log"
 
+# Just in case we need to do a long path problem
+# TODO this may not work on a path of 400+ characters
+
+$drives = [io.driveinfo]::getdrives() | % {$_.name[0]}
+$alpha = [char[]](65..90)
+$avail = diff $drives $alpha | select -ExpandProperty inputobject
+$subdrive = $avail[0] + ':'
+$substUsed = $false
+ 
+
+
 Teelog -message "Running As: $Env:Username" -Logfile $log
 
 #Quick and dirty way to check if we might already be running (this happens when a system is put in to standby/hibernation during our collects)
@@ -729,6 +778,9 @@ Switch ($mode)
         TeeLog -message "This job has an unknown MODE '$mode' - Quitting." -Logfile $log
     }
 }
+
+# un-map the drive if used
+if ($substUsed) { $null = subst $subdrive /d }
 
 
 try
