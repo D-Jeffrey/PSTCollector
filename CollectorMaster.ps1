@@ -1,6 +1,6 @@
 # This is the PST Collector Master script. It handles the firing of the CollectorAgent and network scans. It also gathers and centralizes information.
 #
-# Usage: CollectorMaster.ps1 -Mode <mode> -JobName <jobname> -Locations <locations> -CollectPath <path> [-ConfigPath <path>] [-ForceRestart] [-noping] [-throttlelimit <xx>] [-NoSkipCommon] [-IsArchive <True | False>]
+# Usage: CollectorMaster.ps1 -Mode <mode> -JobName <jobname> -Locations <locations> -CollectPath <path> [-ConfigPath <path>] [-ForceRestart] [-noping] [-throttlelimit <xx>] [-NoSkipCommon] [-IsArchive <True | False>] [-UseBackupPriv <1 | 0>]
 #
 # Specify locations as an Organizational Unit path (i.e. OU=COMPUTERS,DC=DOMAIN,DC=LOCAL) or network file path (i.e. \\server\share\path) separted by commas.
 #
@@ -33,7 +33,10 @@ Param(
         [Switch]$NoSkipCommon=$false,
 
     [Parameter(Position=10)]
-        [Boolean]$IsArchive=$true
+        [Boolean]$IsArchive=$true,
+
+    [Parameter(Position=11)]
+        [Boolean]$UseBackupPriv=$true
 )
 
 function Sanitize([String]$Location)
@@ -337,7 +340,27 @@ Catch
     $XMLParameter.SetAttribute("NoSkipCommon", $NoSkipCommon)
 }
 
+Try { $XMLParameters.SelectSingleNode("Parameter[@UseBackupPriv]").SetAttribute("UseBackupPriv",$UseBackupPriv) }
+Catch
+{
+    $XMLParameter=$XMLParameters.AppendChild($XML.CreateElement("Parameter"))
+    $XMLParameter.SetAttribute("UseBackupPriv", $UseBackupPriv)
+}
 [boolean]$Global:NotCompleteFlag = $false
+
+if ($UseBackupPriv) {
+    # Check current privledges 
+    # TODO need to capture and restore
+    whoami /priv|?{$_ -match "SeBackupPrivilege|SeRestorePrivilege"}
+    $privscript = (Split-path -parent $PSCommandPath ) + "\adjustprivilege.ps1"
+    .  $privscript
+
+    Implement-AdjustPrivilege
+    [Sevecek.Win32API.Privileges]::AdjustPrivilege('SeBackupPrivilege', $true)
+    
+    # if we need to move or delete files, then enable that   
+    if ($mode -eq "remove") { [Sevecek.Win32API.Privileges]::AdjustPrivilege('SeRestorePrivilege', $true) }
+    }
 
 foreach ($location in $locations)
 {
@@ -516,6 +539,15 @@ if ($mode -eq "collect")
         $Global:NotCompleteFlag = $true
     }
 }
+if ($UseBackupPriv) {
+    # TODO properly restore premissions
+    # this does not work properly yet
+    #
+    [Sevecek.Win32API.Privileges]::AdjustPrivilege('SeBackupPrivilege', $false)
+    [Sevecek.Win32API.Privileges]::AdjustPrivilege('SeRestorePrivilege', $false) 
+    # debuggging only
+    whoami /priv|?{$_ -match "SeBackupPrivilege|SeRestorePrivilege"}
+}
 
 if (!$Global:NotCompleteFlag)
 {
@@ -525,4 +557,3 @@ if (!$Global:NotCompleteFlag)
 }
 $XML.Save("$configpath\MASTER-$jobname.xml") #Save the config XML
 Write-Host "Completed."
-
