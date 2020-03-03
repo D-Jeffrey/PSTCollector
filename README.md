@@ -47,6 +47,8 @@ Usage:
   - `Throttlelimit`          #OPTIONAL - Set the limit of active collector threads that can run at the same time. Default is 25.
   - `NoSkipCommon`           #OPTIONAL - Tell the collector to check ALL folders on the hard drive for PST files. Without this switch, the                                         collector will improve performance by skipping folders we know don't usually have PST files.                                             This includes: both Program Files folders, Windows, System Volume Info, and Recycle Bins.
   - `IsArchive`              #OPTIONAL - When creating the import template for Office 365, it will tell Office 365 to import the PST files                                         in to the user's archive mailbox instead of their main mailbox. Default is TRUE.
+  - `UseBackupPriv`          #OPTIONAL - If requiredd, Backup/REstore Priveledge can be added to the current job to overcome 
+                                              permissions issues. Default is FALSE.
         
   Example:
     `\\fileserver\scripts\PSTCollector\CollectorMaster.ps1 -Mode FIND -JobName PSTCollect -Locations "OU=Computers,DC=Domain,DC=Local","\\fileserver\homefolders" -CollectPath \\fileserver\PSTCollection`
@@ -65,5 +67,5 @@ Things to Note:
   - The CollectorAgent has an undocumented parameter `ipg` which can be modified in code. This is the interpacket gap time used by RoboCopy. By default, the value is 1ms and the Agent throttles the PST copy so it doesn't overwhelm your network.
   - **I've included an additional .vbs script that can be run as a login script or scheduled task in the `user` context of each machine to remove all PST files from Outlook BEFORE you use the PSTCollector to `REMOVE` the files. If you `REMOVE` the file before it is removed from Outlook, the user will get an error in Outlook.**
   - Prior to starting the collection process you should already have pushed out GPO to block any further creation of PST files and any further expansion of PST files. This will make sure people don't create new files or add to existing files after they have been collected. Users will still be able to remove items from a PST file, so if you notify them ahead of time, they can "clean" up their PST files before you collect them off their system.
-  
+  - In order to use the Backup/Restore priveledge can be used to overcome tasks which need to read data not accessible even to Administartors by default.  Thus avoiding the anoying access denied errors on some of the system folders. (credit to Ondřej Ševeček)
 
