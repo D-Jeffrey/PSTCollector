@@ -36,7 +36,7 @@ Param(
         [Boolean]$IsArchive=$true,
 
     [Parameter(Position=11)]
-        [Boolean]$UseBackupPriv=$true
+        [Boolean]$UseBackupPriv=$false
 )
 
 function Sanitize([String]$Location)
