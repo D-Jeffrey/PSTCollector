@@ -27,7 +27,14 @@ Param(
         [switch]$noskipcommon=$false,
 
     [Parameter(Position=8)]
-        [string]$ipg="1"
+        [string]$ipg="1",
+
+    [Parameter(Position=9)]
+        [switch]$ilp=$True,               # ignore long path if we can not make subst work on it
+
+    [Parameter(Position=9)]
+        [switch]$nosubst=$True               # Do not use Subst for long paths
+
 )
 
 function InitializeXML
@@ -89,11 +96,15 @@ function InitializeXML
 
 function RecurseFolder([string]$path, [string]$mappath)
 {
-    
-    
+    $longpath = $false
+    # write-progress -Activity $path 
     if ($path -eq "") { return } 
     $l = $path.length
+   # if ($l -gt 200) { Write-host "*Path - ($l) $path" }
+    # is this path too long  and we cannot subst it?
+    if ($path.length -gt 240 -and $nosubst -and $ilp) { return }
     if ($path.length -gt 240) {
+        $longpath = $true
         if ($substUsed) {
           # we may have a problem and need to reuse Subst .. 
           # TODO fix this
@@ -103,7 +114,7 @@ function RecurseFolder([string]$path, [string]$mappath)
         }
         if ($path.StartsWith("\\")) {
             $mappath = Split-Path $path -parent
-            write-host "MAP $subdrive $mappath"
+            # write-host "MAP $subdrive $mappath"
             }
         else { 
             write-host "Can not shorten $path"
@@ -114,10 +125,6 @@ function RecurseFolder([string]$path, [string]$mappath)
         $substUsed = $true
  
         $path = Join-Path $subdrive $(Split-Path -path $path -Leaf)
-        Write-host "
-*RF: $path 
--was $op
-+via $mappath" 
         }
         
       
@@ -139,7 +146,9 @@ function RecurseFolder([string]$path, [string]$mappath)
     $directory = @(get-childitem -LiteralPath $path -Force -ErrorAction SilentlyContinue -ErrorVariable err | Select FullName,Attributes | Where-Object {$_.Attributes -like "*directory*" -and $_.Attributes -notlike "*reparsepoint*"})
     if ($err)
     {
-        TeeLog -Message "RecurseFolder: ($path): $err" -Logfile $log -Errors $XMLErrors
+        # TODO just ignore long paths which we can not reach
+        if ($longpath -and $ilp -and $err -like "*Cannot find path*") { return} 
+        TeeLog -Message "RecurseFolder: ($path): $ilp $longpath $err" -Logfile $log -Errors $XMLErrors
         return
     }
 
@@ -184,7 +193,7 @@ function TeeLog
             $XMLError.SetAttribute("Message", $message)
             $XMLError.SetAttribute("Time", (get-date).tostring("G"))
         }
-        $message = (get-date).ToUniversalTime().tostring("G") + ": " + $Env:ComputerName + ": " + $message 
+        $message = (get-date).tostring("G") + ": " + $Env:ComputerName + ": " + $message 
         $message | out-file -FilePath $logfile -Append
         write-host $message
     }
@@ -658,6 +667,7 @@ Switch ($mode)
         else
         {
             TeeLog -message "Starting FIND job." -Logfile $log
+            TeeLog -message "Ignore Long Paths : $ilp    No Subst :$nosubst" -Logfile $log
             if (DoFind)
             {
                 TeeLog -message "The FIND operationg completed successfully." -Logfile $log
