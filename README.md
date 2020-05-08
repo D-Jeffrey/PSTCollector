@@ -67,8 +67,9 @@ Things to Note:
   - The CollectorAgent has an undocumented parameter `ipg` which can be modified in code. This is the interpacket gap time used by RoboCopy. By default, the value is 1ms and the Agent throttles the PST copy so it doesn't overwhelm your network.
   - **I've included an additional .vbs script that can be run as a login script or scheduled task in the `user` context of each machine to remove all PST files from Outlook BEFORE you use the PSTCollector to `REMOVE` the files. If you `REMOVE` the file before it is removed from Outlook, the user will get an error in Outlook.**
   - Prior to starting the collection process you should already have pushed out GPO to block any further creation of PST files and any further expansion of PST files. This will make sure people don't create new files or add to existing files after they have been collected. Users will still be able to remove items from a PST file, so if you notify them ahead of time, they can "clean" up their PST files before you collect them off their system.
-  - In order to use the Backup/Restore priveledge can be used to overcome tasks which need to read data not accessible even to Administartors by default.  Thus avoiding the anoying access denied errors on some of the system folders. (credit to Ondřej Ševeček)
+  - In order to use the Backup/Restore priveledge can be used to overcome tasks which need to read data not accessible even to Administartors by default.  Thus avoiding the anoying access denied errors on some of the system folders. (credit to Ondřej Ševeček)  The additional script of adjustprivilege.ps1 must be in the same directory as the other scripts.
 
   - If you need to scan a local system or SMB server which you can not copy the agent to you can run it directly with similiar parameters to CollectorMaster.  Assuming you have the agent script local
+  
   Example:
-    `c:\Scripts\CollectorAgent.ps1 -Mode FIND -JobName PSTLocal -Locations "\\smbserver\homefolders" -CollectPath \\\fileserver\PSTCollection`
+    `c:\Scripts\CollectorAgent.ps1 -Mode FIND -JobName PSTLocal -Locations "\\smbserver\homefolders" -CollectPath \\fileserver\PSTCollection`
