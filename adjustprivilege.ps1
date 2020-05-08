@@ -1,3 +1,4 @@
+# http://www.sevecek.com/EnglishPages/Lists/Posts/Post.aspx?ID=100
 function Implement-AdjustPrivilege ()
 {
   $win32api = @'
