@@ -6,7 +6,7 @@ Developed by: Appleoddity
 Requirements:
   1) All collected systems need to be running Windows 7 or newer
   2) CollectorMaster.ps1 needs to run Powershell 5 or newer
-  3) All computers must be part of a domain
+  3) All computers must be part of a domain _(this does not work on AD joined)_
   4) CollectMaster should be run with Domain Admin privileges or equivalent
   5) PSEXEC is required and needs to be downloaded separately.
   6) Users in active directory must have an accurate "E-Mail Address" populated that matches the Office 365 account to import their PST files into.
