@@ -69,3 +69,6 @@ Things to Note:
   - Prior to starting the collection process you should already have pushed out GPO to block any further creation of PST files and any further expansion of PST files. This will make sure people don't create new files or add to existing files after they have been collected. Users will still be able to remove items from a PST file, so if you notify them ahead of time, they can "clean" up their PST files before you collect them off their system.
   - In order to use the Backup/Restore priveledge can be used to overcome tasks which need to read data not accessible even to Administartors by default.  Thus avoiding the anoying access denied errors on some of the system folders. (credit to Ondřej Ševeček)
 
+  - If you need to scan a local system or SMB server which you can not copy the agent to you can run it directly with similiar parameters to CollectorMaster.  Assuming you have the agent script local
+  Example:
+    `c:\Scripts\CollectorAgent.ps1 -Mode FIND -JobName PSTLocal -Locations "\\smbserver\homefolders" -CollectPath \\\fileserver\PSTCollection`
